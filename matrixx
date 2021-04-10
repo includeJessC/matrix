@@ -1,0 +1,205 @@
+#include <iostream>
+#include <vector>
+#include <iterator>
+#include <cassert>
+
+template<typename T>
+class Matrix {
+public:
+    Matrix(const std::vector<std::vector<T>>& list) {
+        _content = list;
+    }
+
+    std::pair<size_t, size_t> size() const {
+        return std::pair(_content.size(), _content[0].size());
+    }
+
+    friend std::ostream& operator<<(std::ostream& out, const Matrix<T>& m) {
+        for (size_t i = 0; i < m._content.size(); ++i) {
+            for (size_t j = 0; j < m._content[i].size(); ++j) {
+                if (j != m._content[i].size() - 1) {
+                    out << m._content[i][j] << '\t';
+                } else {
+                    out << m._content[i][j];
+                }
+            }
+            if (i != m._content.size() - 1) {
+                out << '\n';
+            }
+        }
+        return out;
+    }
+    friend Matrix<T> operator+(const Matrix<T>& thisis, const Matrix<T>& other) {
+        size_t rows = thisis.size().first;
+        size_t columns = thisis.size().second;
+        std::vector<std::vector<T>> creator(rows, std::vector<T>(columns));
+        Matrix copy = Matrix(creator);
+        for (size_t i = 0; i < copy._content.size(); ++i) {
+            for (size_t j = 0; j < copy._content[i].size(); ++j) {
+                copy._content[i][j] = thisis._content[i][j] + other._content[i][j];
+            }
+        }
+        return copy;
+    }
+    template<typename N>
+    friend Matrix<T> operator*(const Matrix<T>& thisis, const N& other) {
+        size_t rows = thisis.size().first;
+        size_t columns = thisis.size().second;
+        std::vector<std::vector<T>> creator(rows, std::vector<T>(columns));
+        Matrix copy = Matrix(creator);
+        for (size_t i = 0; i < copy._content.size(); ++i) {
+            for (size_t j = 0; j < copy._content[i].size(); ++j) {
+                copy._content[i][j] = thisis._content[i][j] * other;
+            }
+        }
+        return copy;
+    }
+    template<typename N>
+    friend Matrix<T> operator *= (Matrix<T>& thisis, const N& other) {
+        thisis = thisis * other;
+        return thisis;
+    }
+
+    Matrix operator +=(const Matrix& other) {
+        *this = *this + other;
+        return *this;
+    }
+
+    Matrix transpose() {
+        Matrix copy = *this;
+        size_t rows = (*this).size().first;
+        size_t columns = (*this).size().second;
+        (*this)._content.resize(columns);
+        for (size_t i = 0; i < (*this)._content.size(); ++i) {
+            (*this)._content[i].resize(rows);
+        }
+        for (size_t i = 0; i < (*this)._content.size(); ++i) {
+            for (size_t j = 0; j < (*this)._content[i].size(); ++j) {
+                (*this)._content[i][j] = copy._content[j][i];
+            }
+        }
+        return *this;
+    }
+
+    Matrix transpose() const {
+        size_t rows = (*this).size().first;
+        size_t columns = (*this).size().second;
+        std::vector<std::vector<T>> creator(columns, std::vector<T>(rows));
+        Matrix copy = Matrix(creator);
+        for (size_t i = 0; i < copy._content.size(); ++i) {
+            for (size_t j = 0; j < copy._content[i].size(); ++j) {
+                copy._content[i][j] = (*this)._content[j][i];
+            }
+        }
+        return copy;
+    }
+
+    Matrix operator *= (const Matrix& other) {
+        assert((*this).size().second == other.size().first);
+        *this = *this * other;
+        return *this;
+    }
+
+    Matrix operator * (const Matrix& other) {
+        assert((*this).size().second == other.size().first);
+        size_t rows = (*this).size().first;
+        size_t columns = other.size().second;
+        std::vector<std::vector<T>> creator(rows, std::vector<T>(columns));
+        Matrix result = Matrix(creator);
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < columns; ++j) {
+                for (size_t k = 0; k < (*this).size().second; ++k) {
+                    result._content[i][j] += (*this)._content[i][k] * other._content[k][j];
+                }
+            }
+        }
+        return result;
+    }
+
+    class Iterator {
+    private:
+        std::vector<std::vector<T>> &data;
+        size_t it;
+
+    public:
+        Iterator(std::vector<std::vector<T>> &data, size_t it) : data(data), it(it) {}
+
+        Iterator& operator++() {
+            ++it;
+            return *this;
+        }
+
+        Iterator& operator++(int) {
+            Iterator copy = *this;
+            ++it;
+            return copy;
+        }
+
+        T operator*() {
+            size_t cols = data[0].size();
+            return data[it / cols][it % cols];
+        }
+
+        bool operator==(const Iterator &it1) const {
+            return it == it1.it;
+        }
+
+        bool operator!=(const Iterator &it1) const {
+            return it != it1.it;
+        }
+    };
+
+
+
+    class ConstIterator {
+    private:
+        const std::vector<std::vector<T>> &data;
+        size_t it;
+
+    public:
+        ConstIterator(const std::vector<std::vector<T>> &data, size_t it) : data(data), it(it) {}
+
+        ConstIterator& operator++() {
+            ++it;
+            return *this;
+        }
+
+        ConstIterator& operator++(int) {
+            ConstIterator copy = it;
+            ++it;
+            return *this;
+        }
+
+        T operator*() const {
+            size_t cols = data[0].size();
+            return data[it / cols][it % cols];
+        }
+
+        bool operator==(const ConstIterator &it1) const {
+            return it == it1.it;
+        }
+
+        bool operator!=(const ConstIterator &it1) const {
+            return it != it1.it;
+        }
+    };
+
+    Iterator begin() {
+        return Iterator(_content, 0);
+    }
+
+    Iterator end() {
+        return Iterator(_content, size().first * size().second);
+    }
+
+    ConstIterator begin() const {
+        return ConstIterator(_content, 0);
+    }
+
+    ConstIterator end() const {
+        return ConstIterator(_content, size().first * size().second);
+    }
+
+private:
+    std::vector<std::vector<T>> _content;
+};
